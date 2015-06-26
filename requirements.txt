@@ -1,0 +1,2 @@
+configparser==3.3.0.post2
+suds==0.4

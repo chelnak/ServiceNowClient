@@ -1,0 +1,83 @@
+#!/usr/bin/python
+__author__ = "cuslaw"
+from suds.client import Client
+from ConfigParser import SafeConfigParser
+from argparse import ArgumentParser
+
+parser = SafeConfigParser()
+parser.read('config.ini')
+host = parser.get('defaults', 'host')
+user = parser.get('defaults', 'user')
+passwd = parser.get('defaults', 'passwd')
+version = parser.get('defaults', 'version')
+
+def getArgs():
+
+	parser = ArgumentParser(description='Service Now Python Client v{version}'.format(version=version))
+	parser.add_argument('server', help='Name of the CI to retrieve')
+	args = parser.parse_args()
+	server = args.server
+
+	#print args
+
+	return server
+
+def printVersion(v):
+    print "============================="
+    print "ServiceNow Python Client"
+    print "Version: {}".format(v)
+    print "============================="
+
+def getApplicationOwner(host, user, passwd, sysid=None):
+	if sysid != None:
+		wsdl = "sys_user.do?wsdl"
+		svc = host + wsdl	
+		client =  Client(svc, username=user, password=passwd)
+		result = client.service.get(sysid)
+		return result.name
+	
+def getCMDBServer(host,  user,  password, name):
+    if name != None:
+        wsdl =  "cmdb_ci_server_list.do?wsdl"
+        svc = host + wsdl  
+        client =  Client(svc, username=user, password=passwd)
+        result = client.service.getRecords(name = name)
+
+        status = {
+            '101': 'Awaiting Installation (In Store)',
+            '102': 'Installed (In Data Centre)',
+            '103': 'Retired (In Store)',
+            '104': 'Disposed (Removed from Campus)',
+            '105': 'Decommissioned (in Data Centre)'
+            }
+
+        for item in result:
+            #Return items with status of 101 or 102 only
+            if str(item.install_status) == '101' or str(item.install_status) == '102':
+        
+                application_owner = None
+                install_status = None
+                install_status = status.get(str(item.install_status))
+                u_application_owner = getApplicationOwner(host,user,passwd,item.u_application_owner)
+        
+                print "==============================================================================================================="
+                print "NAME:           |   {}".format(item.name)
+                print "DESCRIPTION:    |   {}".format(item.short_description)
+                print "ROLE:           |   {}".format(item.u_role)
+                print "OWNER:          |   {}".format(u_application_owner)
+                print "STATUS:         |   {}".format(install_status)
+                print "URL:            |   {host}nav_to.do?uri=cmdb_ci_server.do?sys_id={sysid}".format(host=host, sysid=item.sys_id)
+                print "==============================================================================================================="
+                print
+def main():
+
+    printVersion(version)
+
+    server = getArgs()
+
+    getCMDBServer(host, user, passwd, server)
+
+if __name__ == '__main__':
+    main()
+    
+
